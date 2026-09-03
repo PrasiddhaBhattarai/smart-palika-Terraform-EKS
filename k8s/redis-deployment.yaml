@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: sm-app
+  name: redis
+  labels:
+    app: sm-app
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sm-app
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: sm-app
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

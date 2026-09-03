@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: sm-app
+  name: redis-service
+  labels:
+    app: sm-app
+    component: redis
+spec:
+  selector:
+    app: sm-app
+    component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP

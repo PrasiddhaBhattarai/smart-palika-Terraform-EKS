@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: sm-app
+  labels:
+    app: sm-app
+    component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sm-app
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: sm-app
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: prashidha333/sm-frontend:latest
+          #imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          resources:
+            requests:
+              cpu: '100m'
+              memory: '128Mi'
+            limits:
+              cpu: '500m'
+              memory: '256Mi'
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+
+# metadata:
+#   name: frontend-ingress
+#   namespace: sm-app
+
+# spec:
+#   ingressClassName: traefik
+
+#   rules:
+#     - host: taskmanager.local
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: frontend-service
+#                 port:
+#                   number: 80

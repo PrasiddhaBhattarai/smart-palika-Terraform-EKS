@@ -1,0 +1,98 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  :root {
+    --nepal-blue: #003893;
+    --nepal-red: #DC143C;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-800;
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-nepal-blue;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-nepal-red hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition duration-300;
+  }
+  
+  .btn-secondary {
+    @apply bg-white border-2 border-nepal-blue text-nepal-blue hover:bg-gray-50 font-medium py-2 px-6 rounded-lg transition duration-300;
+  }
+  
+  .btn-outline {
+    @apply bg-transparent border-2 border-white text-white hover:bg-white/10 font-medium py-2 px-6 rounded-lg transition duration-300;
+  }
+  
+  .form-input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nepal-blue focus:border-transparent;
+  }
+  
+  .form-select {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nepal-blue focus:border-transparent;
+  }
+  
+  .form-textarea {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nepal-blue focus:border-transparent resize-none;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-lg p-6 border border-gray-100;
+  }
+  
+  .section-padding {
+    @apply py-12 md:py-16 lg:py-24;
+  }
+  
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  height: 400px;
+  width: 100%;
+  border-radius: 0.5rem;
+  z-index: 1;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Animation classes */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-pulse-slow {
+  animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
