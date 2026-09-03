@@ -1,0 +1,578 @@
+
+## GitHub Actions Workflows
+
+This directory contains the GitHub Actions workflows used to automate Docker image publishing and Terraform infrastructure management.
+
+## Structure
+
+```text
+.github/
+└── workflows/
+    ├── publish_docker_hub.yaml
+    ├── tf_apply.yaml
+    ├── tf_destroy.yaml
+    └── README.md
+```
+
+---
+
+## Workflows Overview
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `publish_docker_hub.yaml` | GitHub Release published | Builds and publishes frontend and backend Docker images to Docker Hub |
+| `tf_apply.yaml` | Pull Request / Push to `dev` or `prod` | Validates, plans, and applies Terraform infrastructure changes |
+| `tf_destroy.yaml` | Manual | Plans and destroys Terraform infrastructure for a selected environment |
+
+---
+
+## 1. `publish_docker_hub.yaml`
+
+## Purpose
+
+This workflow builds and publishes the application's Docker images to Docker Hub whenever a GitHub Release is published.
+
+### Trigger
+
+```yaml
+on:
+  release:
+    types: [published]
+```
+
+The workflow does not run on every push. It only runs when a GitHub Release is published.
+
+## Images
+
+The workflow builds two Docker images:
+
+| Image | Context | Dockerfile |
+|---|---|---|
+| `sm-frontend` | `./app/client` | `./app/client/Dockerfile` |
+| `sm-backend` | `./app/server` | `./app/server/Dockerfile` |
+
+Images are published as:
+
+```text
+<DOCKERHUB_USERNAME>/sm-frontend
+<DOCKERHUB_USERNAME>/sm-backend
+```
+
+## What It Does
+
+1. Checks out the repository.
+2. Sets up QEMU for cross-platform builds.
+3. Sets up Docker Buildx.
+4. Verifies that Docker Hub credentials are configured.
+5. Logs in to Docker Hub.
+6. Generates Docker image metadata and tags.
+7. Builds the frontend and backend images.
+8. Builds images for both `linux/amd64` and `linux/arm64`.
+9. Pushes the images to Docker Hub.
+10. Generates and pushes artifact attestations for the published images.
+
+## Flow
+
+```text
+GitHub Release Published
+          │
+          ▼
+   Checkout Repository
+          │
+          ▼
+     Setup QEMU
+          │
+          ▼
+   Setup Docker Buildx
+          │
+          ▼
+    Login to Docker Hub
+          │
+          ▼
+ ┌────────┴─────────┐
+ │                  │
+ ▼                  ▼
+Frontend           Backend
+Image              Image
+ │                  │
+ └────────┬─────────┘
+          ▼
+ Build for amd64 + arm64
+          │
+          ▼
+     Push to Docker Hub
+          │
+          ▼
+ Generate Attestation
+```
+
+---
+
+## 2. `tf_apply.yaml`
+
+## Purpose
+
+This workflow validates, plans, and applies Terraform infrastructure changes for the `dev` and `prod` environments.
+
+It behaves differently depending on whether the workflow is triggered by a Pull Request or a push.
+
+## Triggers
+
+```yaml
+on:
+  push:
+    branches:
+      - dev
+      - prod
+
+  pull_request:
+    branches:
+      - dev
+      - prod
+```
+
+| Event | Result |
+|---|---|
+| Pull Request → `dev` | Plan only |
+| Pull Request → `prod` | Plan only |
+| Push → `dev` | Plan + Apply |
+| Push → `prod` | Plan + Apply |
+
+---
+
+## Environment Selection
+
+The workflow automatically determines the Terraform environment from the branch.
+
+For Pull Requests:
+
+```text
+TF_ENV = Pull Request target branch
+```
+
+For pushes:
+
+```text
+TF_ENV = pushed branch
+```
+
+The corresponding Terraform directory is:
+
+```text
+terraform/environments/dev
+terraform/environments/prod
+```
+
+The appropriate backend is also selected:
+
+```text
+terraform/backend/dev.tfbackend
+terraform/backend/prod.tfbackend
+```
+
+---
+
+## Terraform Plan
+
+The `terraform-plan` job performs the following steps:
+
+### 1. Checkout
+
+Checks out the repository.
+
+### 2. Configure AWS Credentials
+
+Authenticates with AWS using GitHub Actions OIDC and the configured IAM role:
+
+```yaml
+role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+```
+
+### 3. Setup Terraform
+
+Installs Terraform on the GitHub Actions runner.
+
+### 4. Terraform Init
+
+Initializes Terraform using the environment-specific backend:
+
+```bash
+terraform init \
+  -backend-config=../../backend/${TF_ENV}.tfbackend
+```
+
+### 5. Terraform Format Check
+
+Checks Terraform formatting:
+
+```bash
+terraform fmt -check -recursive
+```
+
+### 6. Terraform Validate
+
+Validates the Terraform configuration:
+
+```bash
+terraform validate
+```
+
+### 7. Terraform Plan
+
+Creates a Terraform execution plan:
+
+```bash
+terraform plan -out=tfplan
+```
+
+### 8. Upload Plan
+
+For pushes to `dev` or `prod`, the generated plan is uploaded as a GitHub Actions artifact.
+
+The artifact is retained for one day.
+
+---
+
+## Terraform Apply
+
+The `terraform-apply` job runs only after the plan job succeeds:
+
+```yaml
+needs:
+  - terraform-plan
+```
+
+It also runs only for push events:
+
+```yaml
+if: github.event_name == 'push'
+```
+
+Therefore, Pull Requests only perform Terraform planning and cannot directly apply infrastructure changes.
+
+The apply job downloads the exact plan generated by the previous job and applies it:
+
+```bash
+terraform apply -auto-approve tfplan
+```
+
+## Flow
+
+### Pull Request
+
+```text
+Pull Request
+     │
+     ▼
+Terraform Init
+     │
+     ▼
+Terraform Format Check
+     │
+     ▼
+Terraform Validate
+     │
+     ▼
+Terraform Plan
+     │
+     ▼
+   Review
+```
+
+### Push to `dev` or `prod`
+
+```text
+Push
+ │
+ ▼
+Terraform Plan
+ │
+ ▼
+Upload tfplan
+ │
+ ▼
+Download tfplan
+ │
+ ▼
+Terraform Apply
+```
+
+---
+
+## 3. `tf_destroy.yaml`
+
+## Purpose
+
+This workflow manually destroys Terraform-managed infrastructure for either the `dev` or `prod` environment.
+
+Unlike `tf_apply.yaml`, it is not triggered automatically.
+
+It must be manually started from GitHub Actions.
+
+## Trigger
+
+```yaml
+on:
+  workflow_dispatch:
+```
+
+When starting the workflow, an environment must be selected:
+
+```text
+dev
+prod
+```
+
+---
+
+## Terraform Destroy Plan
+
+The first job creates a destroy plan.
+
+It performs:
+
+1. Checkout repository.
+2. Configure AWS credentials.
+3. Setup Terraform.
+4. Initialize the selected Terraform environment.
+5. Generate a destroy plan.
+6. Upload the destroy plan as an artifact.
+
+The destroy plan is generated using:
+
+```bash
+terraform plan \
+  -destroy \
+  -out=destroy.tfplan
+```
+
+The plan artifact is retained for one day.
+
+---
+
+## Terraform Destroy Apply
+
+The second job runs only after the destroy-plan job succeeds.
+
+It:
+
+1. Checks out the repository.
+2. Downloads the generated destroy plan.
+3. Configures AWS credentials.
+4. Sets up Terraform.
+5. Initializes Terraform.
+6. Applies the previously generated destroy plan.
+
+The infrastructure is destroyed using:
+
+```bash
+terraform apply \
+  -auto-approve \
+  destroy.tfplan
+```
+
+The workflow therefore separates the planning and execution of the destructive operation.
+
+## Flow
+
+```text
+Manual Workflow Dispatch
+          │
+          ▼
+   Select Environment
+       dev / prod
+          │
+          ▼
+     Terraform Init
+          │
+          ▼
+ Terraform Destroy Plan
+          │
+          ▼
+ Upload Destroy Plan
+          │
+          ▼
+ Download Destroy Plan
+          │
+          ▼
+ Terraform Apply Destroy
+          │
+          ▼
+ Infrastructure Destroyed
+```
+
+---
+
+## Production Protection
+
+Both Terraform apply and destroy workflows use GitHub Environments:
+
+```text
+dev
+prod
+```
+
+The `prod` environment can be configured with required reviewers in GitHub.
+
+This allows production operations to require manual approval before Terraform is applied.
+
+For example:
+
+```text
+Production Operation
+        │
+        ▼
+ GitHub prod Environment
+        │
+        ▼
+Required Reviewer Approval
+        │
+        ▼
+Terraform Operation
+```
+
+This protection is especially useful for the destroy workflow because it prevents production infrastructure from being destroyed without the configured approval.
+
+---
+
+## AWS Authentication
+
+The Terraform workflows authenticate with AWS using GitHub Actions OIDC.
+
+The workflows assume the IAM role configured in:
+
+```text
+AWS_IAM_ROLE
+```
+
+The AWS region is configured using:
+
+```text
+AWS_REGION
+```
+
+If `AWS_REGION` is not configured, the workflows default to:
+
+```text
+us-east-1
+```
+
+This avoids storing long-lived AWS access keys in GitHub Actions.
+
+---
+
+## Required GitHub Secrets
+
+The workflows use the following GitHub Secrets:
+
+```text
+DOCKERHUB_USERNAME
+DOCKERHUB_TOKEN
+AWS_IAM_ROLE
+```
+
+### `DOCKERHUB_USERNAME`
+
+Docker Hub username used when publishing Docker images.
+
+### `DOCKERHUB_TOKEN`
+
+Docker Hub access token used to authenticate the Docker publishing workflow.
+
+### `AWS_IAM_ROLE`
+
+AWS IAM role assumed by GitHub Actions through OIDC.
+
+---
+
+## Required GitHub Variables
+
+The Terraform workflows support:
+
+```text
+AWS_REGION
+```
+
+If it is not configured, the default region is:
+
+```text
+us-east-1
+```
+
+---
+
+## Environment Mapping
+
+The Terraform workflows map Git branches to Terraform environments:
+
+```text
+dev
+ │
+ ▼
+terraform/environments/dev
+ │
+ ▼
+terraform/backend/dev.tfbackend
+```
+
+```text
+prod
+ │
+ ▼
+terraform/environments/prod
+ │
+ ▼
+terraform/backend/prod.tfbackend
+```
+
+---
+
+## Overall Workflow Architecture
+
+```text
+                         GitHub Repository
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+              ▼                 ▼                 ▼
+       GitHub Release      Pull Request       Push
+              │                 │                 │
+              ▼                 ▼                 ▼
+      publish_docker_hub     tf_apply          tf_apply
+              │                 │                 │
+              ▼                 ▼                 ▼
+         Docker Hub        Terraform Plan   Plan + Apply
+                                │                 │
+                                │                 ▼
+                                │              AWS
+                                │
+                                ▼
+                             Review
+
+
+                         Manual Workflow
+                                │
+                                ▼
+                         tf_destroy.yaml
+                                │
+                                ▼
+                       Destroy Plan
+                                │
+                                ▼
+                       Destroy Apply
+                                │
+                                ▼
+                          AWS Destroyed
+```
+
+---
+
+## Summary
+
+The `.github/workflows` directory provides three main automation workflows:
+
+- **`publish_docker_hub.yaml`** — Publishes multi-platform frontend and backend Docker images to Docker Hub when a release is published.
+- **`tf_apply.yaml`** — Runs Terraform validation and planning for Pull Requests, and applies infrastructure changes when changes are pushed to `dev` or `prod`.
+- **`tf_destroy.yaml`** — Provides a manual and controlled way to destroy Terraform-managed infrastructure for `dev` or `prod`.
+
+Together, these workflows automate the project's **container publishing and infrastructure lifecycle** while keeping production and destructive operations controlled through GitHub Environments.

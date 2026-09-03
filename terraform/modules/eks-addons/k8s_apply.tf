@@ -60,9 +60,13 @@ resource "aws_iam_role_policy_attachment" "backend-pod" {
 # it should pre-exist
 resource "aws_eks_pod_identity_association" "backend-pod" {
   cluster_name    = var.eks_cluster_name
-  namespace       = "kube-system"
+  namespace       = "sm-app"
   service_account = "backend-pod-sm"
   role_arn        = aws_iam_role.backend-pod.arn
+
+  depends_on = [
+    kubectl_manifest.backend-pod-ServiceAccount
+  ]
 }
 
 
@@ -79,6 +83,10 @@ resource "kubectl_manifest" "namespace" {
 
 resource "kubectl_manifest" "backend-pod-ServiceAccount" {
   yaml_body = file("${local.k8s_path}/backend-pod-ServiceAccount.yaml")
+
+  depends_on = [
+    kubectl_manifest.namespace
+  ]
 }
 
 resource "kubectl_manifest" "app-config" {
@@ -86,9 +94,21 @@ resource "kubectl_manifest" "app-config" {
 
 
   depends_on = [
-    kubectl_manifest.namespace
+    kubectl_manifest.backend-pod-ServiceAccount
   ]
 }
+
+# data "aws_secretsmanager_secret_version" "db" {
+#   secret_id = var.db_secret_arn
+# }
+
+# locals {
+#   db_secret = jsondecode(
+#     data.aws_secretsmanager_secret_version.db.secret_string
+#   )
+
+#   database_url = "postgres://${local.db_secret.username}:${local.db_secret.password}@${var.db_address}:${var.db_port}/${var.db_name}"
+# }
 
 resource "kubectl_manifest" "backend_secret" {
   yaml_body = yamlencode({
@@ -111,6 +131,8 @@ resource "kubectl_manifest" "backend_secret" {
       CLOUDINARY_API_SECRET = var.k8s_cloudinary_api_secret
       EMAIL_USER            = var.k8s_email_user
       EMAIL_PASS            = var.k8s_email_pass
+
+      # DATABASE_URL = local.database_url
 
       AWS_REGION    = var.aws_region
       DB_ADDRESS    = var.db_address
@@ -150,7 +172,8 @@ resource "kubectl_manifest" "frontend_ingress" {
 # so that tf destroy will delete the ingress automatically
 resource "null_resource" "ingress_cleanup" {
   triggers = {
-    cluster_name = var.eks_cluster_name
+    eks_cluster_name = var.eks_cluster_name
+    aws_region = var.aws_region
   }
 
   provisioner "local-exec" {
@@ -160,7 +183,7 @@ resource "null_resource" "ingress_cleanup" {
     when    = destroy
 
     command = <<-EOT
-      aws eks update-kubeconfig --name ${var.eks_cluster_name} --region ${var.aws_region} || true
+      aws eks update-kubeconfig --name ${self.triggers.eks_cluster_name} --region ${self.triggers.aws_region} || true
       kubectl delete ingress frontend-ingress -n sm-app --ignore-not-found --timeout=60s || true
       sleep 30
     EOT
@@ -173,9 +196,14 @@ resource "null_resource" "wait_for_alb" {
   depends_on = [
     kubectl_manifest.frontend_ingress
   ]
+  triggers = {
+    eks_cluster_name = var.eks_cluster_name
+    aws_region = var.aws_region
+  }
 
   provisioner "local-exec" {
     command = <<-EOT
+      aws eks update-kubeconfig --name ${self.triggers.eks_cluster_name} --region ${self.triggers.aws_region} || true
       echo "Waiting for ALB hostname..."
 
       for i in $(seq 1 60); do

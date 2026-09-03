@@ -1,0 +1,117 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to destroy"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+
+    # For prod, configure this GitHub Environment with
+    # required reviewers to require manual approval.
+    environment:
+      name: ${{ inputs.environment }}
+
+    env:
+      TF_ENV: ${{ inputs.environment }}
+      TF_DIR: terraform/environments/${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -backend-config=../../backend/${TF_ENV}.tfbackend
+
+      - name: Terraform Plan Destroy
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform plan \
+            -destroy \
+            -out=destroy.tfplan
+
+      - name: Upload Terraform Destroy Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-destroy-plan-${{ env.TF_ENV }}
+          path: ${{ env.TF_DIR }}/destroy.tfplan
+          retention-days: 1
+
+  terraform-destroy-apply:
+    name: Terraform Destroy Apply
+    runs-on: ubuntu-latest
+
+    needs:
+      - terraform-destroy-plan
+
+    environment:
+      name: ${{ inputs.environment }}
+
+    env:
+      TF_ENV: ${{ inputs.environment }}
+      TF_DIR: terraform/environments/${{ inputs.environment }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Terraform Destroy Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-destroy-plan-${{ env.TF_ENV }}
+          path: ${{ env.TF_DIR }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -backend-config=../../backend/${TF_ENV}.tfbackend
+
+      - name: Terraform Apply Destroy
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply \
+            -auto-approve \
+            destroy.tfplan

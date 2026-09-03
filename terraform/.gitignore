@@ -14,9 +14,6 @@ crash.*.log
 # But allow committing the example/dev tfvars since ours has no secrets
 *.tfvars
 *.tfvars.json
-environments/dev/terraform.tfvars
-environments/prod/terraform.tfvars
-environments/staging/terraform.tfvars
 
 # Ignore override files
 override.tf

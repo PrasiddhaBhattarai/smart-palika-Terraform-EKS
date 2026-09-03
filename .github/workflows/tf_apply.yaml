@@ -1,0 +1,122 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - dev
+      - prod
+
+  pull_request:
+    branches:
+      - dev
+      - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    # TF_ENV = base.ref if its pull_request
+    # TF_ENV = ref_name if its push
+    # TF_DIR = terraform/environmets/TF_ENV
+    env:
+      TF_ENV: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+      TF_DIR: terraform/environments/${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -backend-config=../../backend/${TF_ENV}.tfbackend
+
+      - name: Terraform Format Check
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -out=tfplan
+
+      - name: Upload Terraform Plan
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ env.TF_ENV }}
+          path: ${{ env.TF_DIR }}/tfplan
+          retention-days: 1
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    needs:
+      - terraform-plan
+
+    # Apply only after code is pushed to the environment branch.
+    # PRs only run plan.
+    if: github.event_name == 'push'
+
+    environment:
+      name: ${{ github.ref_name }}
+
+    env:
+      TF_ENV: ${{ github.ref_name }}
+      TF_DIR: terraform/environments/${{ github.ref_name }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ env.TF_ENV }}
+          path: ${{ env.TF_DIR }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init \
+            -backend-config=../../backend/${TF_ENV}.tfbackend
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve tfplan
