@@ -186,6 +186,20 @@ resource "null_resource" "ingress_cleanup" {
       aws eks update-kubeconfig --name ${self.triggers.eks_cluster_name} --region ${self.triggers.aws_region} || true
       kubectl delete ingress frontend-ingress -n sm-app --ignore-not-found --timeout=60s || true
       sleep 30
+
+      echo "Waiting for ALB to be fully deleted..."
+      for i in $(seq 1 20); do
+        ALB_COUNT=$(aws elbv2 describe-load-balancers \
+          --region ${self.triggers.aws_region} \
+          --query "length(LoadBalancers[?contains(LoadBalancerName, 'k8s-smapp-frontend')])" \
+          --output text 2>/dev/null || echo "0")
+        if [ "$ALB_COUNT" = "0" ]; then
+          echo "ALB deleted."
+          break
+        fi
+        echo "ALB still present ($i/20)..."
+        sleep 15
+      done
     EOT
   }
 
