@@ -173,31 +173,62 @@ resource "kubectl_manifest" "frontend_ingress" {
 resource "null_resource" "ingress_cleanup" {
   triggers = {
     eks_cluster_name = var.eks_cluster_name
-    aws_region = var.aws_region
+    aws_region       = var.aws_region
+    vpc_id           = var.vpc_id
   }
 
   provisioner "local-exec" {
-    
-    # Terraform provisioners have a when setting that controls which lifecycle event triggers them
-    # default value is create
-    when    = destroy
+    when = destroy
 
     command = <<-EOT
       aws eks update-kubeconfig --name ${self.triggers.eks_cluster_name} --region ${self.triggers.aws_region} || true
       kubectl delete ingress frontend-ingress -n sm-app --ignore-not-found --timeout=60s || true
-      sleep 30
 
-      echo "Waiting for ALB to be fully deleted..."
-      for i in $(seq 1 20); do
-        ALB_COUNT=$(aws elbv2 describe-load-balancers \
+      echo "Waiting for controller to delete the ALB..."
+      ALB_ARN=""
+      for i in $(seq 1 10); do
+        ALB_ARN=$(aws elbv2 describe-load-balancers \
           --region ${self.triggers.aws_region} \
-          --query "length(LoadBalancers[?contains(LoadBalancerName, 'k8s-smapp-frontend')])" \
-          --output text 2>/dev/null || echo "0")
-        if [ "$ALB_COUNT" = "0" ]; then
-          echo "ALB deleted."
+          --query "LoadBalancers[?contains(LoadBalancerName, 'k8s-smapp-frontend')].LoadBalancerArn" \
+          --output text 2>/dev/null || echo "")
+        if [ -z "$ALB_ARN" ]; then
+          echo "ALB deleted by controller."
           break
         fi
-        echo "ALB still present ($i/20)..."
+        echo "ALB still present ($i/10)..."
+        sleep 10
+      done
+
+      if [ -n "$ALB_ARN" ]; then
+        echo "Controller didn't clean up in time — deleting ALB directly."
+        aws elbv2 delete-load-balancer --region ${self.triggers.aws_region} --load-balancer-arn "$ALB_ARN" || true
+        sleep 20
+      fi
+
+      echo "Cleaning up orphaned ALB-controller security groups..."
+      SG_IDS=$(aws ec2 describe-security-groups \
+        --region ${self.triggers.aws_region} \
+        --filters "Name=vpc-id,Values=${self.triggers.vpc_id}" \
+        --query "SecurityGroups[?starts_with(GroupName, 'k8s-')].GroupId" \
+        --output text 2>/dev/null || echo "")
+
+      for sg in $SG_IDS; do
+        echo "Deleting security group $sg"
+        aws ec2 delete-security-group --region ${self.triggers.aws_region} --group-id "$sg" || true
+      done
+
+      echo "Waiting for ELB ENIs to be released..."
+      for i in $(seq 1 15); do
+        ENI_COUNT=$(aws ec2 describe-network-interfaces \
+          --region ${self.triggers.aws_region} \
+          --filters "Name=vpc-id,Values=${self.triggers.vpc_id}" "Name=description,Values=ELB*" \
+          --query "length(NetworkInterfaces)" \
+          --output text 2>/dev/null || echo "0")
+        if [ "$ENI_COUNT" = "0" ]; then
+          echo "All ELB ENIs released."
+          break
+        fi
+        echo "Still $ENI_COUNT ELB ENI(s) present ($i/15)..."
         sleep 15
       done
     EOT
@@ -212,7 +243,7 @@ resource "null_resource" "wait_for_alb" {
   ]
   triggers = {
     eks_cluster_name = var.eks_cluster_name
-    aws_region = var.aws_region
+    aws_region       = var.aws_region
   }
 
   provisioner "local-exec" {
