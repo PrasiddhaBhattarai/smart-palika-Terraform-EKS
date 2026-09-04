@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  terraform-destroy:
+  terraform-destroy-plan:
     name: Terraform Destroy
     runs-on: ubuntu-latest
 
