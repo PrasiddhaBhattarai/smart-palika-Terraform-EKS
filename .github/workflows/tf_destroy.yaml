@@ -53,6 +53,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.0
 
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
@@ -118,6 +120,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.0
 
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
