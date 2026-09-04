@@ -28,6 +28,14 @@ jobs:
     env:
       TF_ENV: ${{ inputs.environment }}
       TF_DIR: terraform/environments/${{ inputs.environment }}
+      TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
+      TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
+      TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
+      TF_VAR_k8s_cloudinary_cloud_name: ${{ secrets.K8S_CLOUDINARY_CLOUD_NAME }}
+      TF_VAR_k8s_cloudinary_api_key: ${{ secrets.K8S_CLOUDINARY_API_KEY }}
+      TF_VAR_k8s_cloudinary_api_secret: ${{ secrets.K8S_CLOUDINARY_API_SECRET }}
+      TF_VAR_k8s_email_user: ${{ secrets.K8S_EMAIL_USER }}
+      TF_VAR_k8s_email_pass: ${{ secrets.K8S_EMAIL_PASS }
 
     defaults:
       run:
@@ -79,6 +87,14 @@ jobs:
     env:
       TF_ENV: ${{ inputs.environment }}
       TF_DIR: terraform/environments/${{ inputs.environment }}
+      TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
+      TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
+      TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
+      TF_VAR_k8s_cloudinary_cloud_name: ${{ secrets.K8S_CLOUDINARY_CLOUD_NAME }}
+      TF_VAR_k8s_cloudinary_api_key: ${{ secrets.K8S_CLOUDINARY_API_KEY }}
+      TF_VAR_k8s_cloudinary_api_secret: ${{ secrets.K8S_CLOUDINARY_API_SECRET }}
+      TF_VAR_k8s_email_user: ${{ secrets.K8S_EMAIL_USER }}
+      TF_VAR_k8s_email_pass: ${{ secrets.K8S_EMAIL_PASS }
 
     defaults:
       run:

@@ -44,15 +44,6 @@ eks_helm_aws_lbc_repository = "https://aws.github.io/eks-charts"
 eks_helm_aws_lbc_chart      = "aws-load-balancer-controller"
 eks_helm_aws_lbc_version    = "3.4.3"
 
-k8s_redis_url             = "redis://redis-service:6379"
-k8s_jwt_secret            = "62ee96314e78f6319558bb75238f43b08faa2a8f4b1ffa69e9733e532eeb665b"
-k8s_cron_secret           = "your_secure_cron_secret"
-k8s_cloudinary_cloud_name = "detqq6agd"
-k8s_cloudinary_api_key    = "258312139365614"
-k8s_cloudinary_api_secret = "3OtId4uEixun-tr05BYwnnzNRvI"
-k8s_email_user            = "smartpalika33@gmail.com"
-k8s_email_pass            = "npzvocnldjnjczut"
-
 # ElastiCache
 # cache_engine         = "valkey"
 # cache_engine_version = "7.2"
