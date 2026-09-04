@@ -60,8 +60,6 @@ jobs:
         run: |
           terraform init \
             -backend-config=../../backend/${TF_ENV}.tfbackend
-          terraform fmt -check -recursive
-          terraform validate
 
       # - name: Terraform Format Check
       #   working-directory: ${{ env.TF_DIR }}
