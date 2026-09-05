@@ -132,6 +132,21 @@ jobs:
       - name: Terraform Apply Destroy
         working-directory: ${{ env.TF_DIR }}
         run: |
-          terraform apply \
-            -auto-approve \
-            destroy.tfplan
+          # terraform apply \
+          #   -auto-approve \
+          #   destroy.tfplan
+          for attempt in 1 2 3; do
+            if terraform apply --auto-approve destroy.tfplan; then
+              break
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "Destroy failed after 3 attempts"
+              exit 1
+            fi
+
+            echo "Destroy failed (attempt $attempt/3), retrying in 30s..."
+            sleep 30
+          done
+          
+            
