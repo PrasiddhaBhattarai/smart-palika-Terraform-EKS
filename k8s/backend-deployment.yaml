@@ -40,7 +40,7 @@ spec:
 
           envFrom:
             - configMapRef:
-                name: app-config       # inject all keys as env variables
+                name: app-config # inject all keys as env variables
             - secretRef:
                 name: backend-secret
 
@@ -60,5 +60,13 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
-            successThreshold: 1    
+            successThreshold: 1
 
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
