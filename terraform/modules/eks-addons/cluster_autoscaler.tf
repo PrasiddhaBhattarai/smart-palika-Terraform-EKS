@@ -10,6 +10,10 @@ resource "aws_eks_addon" "pod_identity_agent" {
   addon_name    = "eks-pod-identity-agent"
   addon_version = data.aws_eks_addon_version.pod_identity_agent.version
 }
+resource "time_sleep" "wait_for_pod_identity_webhook" {
+  depends_on      = [aws_eks_addon.pod_identity_agent]
+  create_duration = "30s"
+}
 
 # ---------------- cluster_autoscaler --------------
 resource "aws_iam_role" "cluster_autoscaler" {
