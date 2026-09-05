@@ -11,6 +11,16 @@ on:
       - dev
       - prod
 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to apply"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
 permissions:
   id-token: write
   contents: read
