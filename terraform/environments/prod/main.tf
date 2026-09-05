@@ -16,6 +16,49 @@ module "vpc" {
   single_nat_gateway       = var.single_nat_gateway
 }
 
+# we have null_resource.ingress_cleanup in module/eks-addons/k8s_apply.tf
+# it cleans ingress and resources created by ingress (alb, alb's sg, alb's eni)
+# but it couldn't delete one of the sg
+# as a result terraform couldn'd destroy vpc
+# so we handle the sg deletion here
+resource "null_resource" "post_eks_ingress_sg_cleanup" {
+  triggers = {
+    aws_region = var.aws_region
+    vpc_id     = module.vpc.vpc_id
+  }
+
+  provisioner "local-exec" {
+    when = destroy
+
+    command = <<-EOT
+      echo "Post-EKS-destroy: cleaning up any remaining k8s-* security groups..."
+      for attempt in 1 2 3 4 5; do
+        SG_IDS=$(aws ec2 describe-security-groups \
+          --region ${self.triggers.aws_region} \
+          --filters "Name=vpc-id,Values=${self.triggers.vpc_id}" \
+          --query "SecurityGroups[?starts_with(GroupName, 'k8s-')].GroupId" \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$SG_IDS" ]; then
+          echo "No remaining k8s-* security groups."
+          break
+        fi
+
+        for sg in $SG_IDS; do
+          if aws ec2 delete-security-group --region ${self.triggers.aws_region} --group-id "$sg" 2>/dev/null; then
+            echo "Deleted $sg"
+          else
+            echo "$sg still blocked (attempt $attempt/5)"
+          fi
+        done
+        sleep 15
+      done
+    EOT
+  }
+
+  depends_on = [module.vpc]
+}
+
 module "eks" {
   source = "../../modules/eks"
 

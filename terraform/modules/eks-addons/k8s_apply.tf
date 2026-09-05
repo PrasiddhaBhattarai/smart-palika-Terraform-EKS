@@ -169,7 +169,12 @@ resource "kubectl_manifest" "frontend_ingress" {
   ]
 }
 
+# ingress creates alb and alb-required resources which isn't tracked by terraform
+# hence, we need to explictly destroy it
 # so that tf destroy will delete the ingress automatically
+# deletes k8s_ingress
+# also deletes resources created by ingress (alb, alb's sg, alb's eni)
+# but for reason it couldn't delete one of the sg, which we handle in root_module/main.tf/null_resource.post_eks_ingress_sg_cleanup
 resource "null_resource" "ingress_cleanup" {
   triggers = {
     eks_cluster_name = var.eks_cluster_name
@@ -177,6 +182,7 @@ resource "null_resource" "ingress_cleanup" {
     vpc_id           = var.vpc_id
   }
 
+  # destroy k8s_ingress --> alb --> alb's sg --> alb's eni
   provisioner "local-exec" {
     when = destroy
 
@@ -205,17 +211,37 @@ resource "null_resource" "ingress_cleanup" {
         sleep 20
       fi
 
-      echo "Cleaning up orphaned ALB-controller security groups..."
+      echo "Cleaning up orphaned ALB-controller security groups (pass 1)..."
       SG_IDS=$(aws ec2 describe-security-groups \
         --region ${self.triggers.aws_region} \
         --filters "Name=vpc-id,Values=${self.triggers.vpc_id}" \
-        --query "SecurityGroups[?starts_with(GroupName, 'k8s-')].GroupId" \
+        --query "SecurityGroups[?starts_with(GroupName, 'k8s-')].     GroupId" \
         --output text 2>/dev/null || echo "")
 
+      FAILED_SGS=""
       for sg in $SG_IDS; do
-        echo "Deleting security group $sg"
-        aws ec2 delete-security-group --region ${self.triggers.aws_region} --group-id "$sg" || true
+        if ! aws ec2 delete-security-group --region ${self.triggers.      aws_region} --group-id "$sg" 2>/dev/null; then
+          echo "Failed to delete $sg (likely dependency) — will retry       after other SGs clear"
+         FAILED_SGS="$FAILED_SGS $sg"
+       else
+         echo "Deleted $sg"
+       fi
       done
+
+      if [ -n "$FAILED_SGS" ]; then
+        echo "Pass 2: retrying SGs that failed due to dependencies..."
+        sleep 10
+        for sg in $FAILED_SGS; do
+          for attempt in 1 2 3; do
+           if aws ec2 delete-security-group --region ${self.triggers.     aws_region} --group-id "$sg" 2>/dev/null; then
+             echo "Deleted $sg on retry"
+             break
+           fi
+           echo "Still blocked, retrying $sg ($attempt/3)..."
+           sleep 15
+         done
+       done
+      fi
 
       echo "Waiting for ELB ENIs to be released..."
       for i in $(seq 1 15); do
