@@ -146,8 +146,14 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: |
           for attempt in 1 2 3; do
-            if terraform apply -auto-approve tfplan; then
-             break
+            if [ "$attempt" -eq 1 ]; then 
+              terraform apply -auto-approve tfplan 
+            else 
+              terraform apply -auto-approve 
+            fi 
+            
+            if [ "$?" -eq 0 ]; then 
+              break 
             fi
 
             if [ "$attempt" -eq 3 ]; then
