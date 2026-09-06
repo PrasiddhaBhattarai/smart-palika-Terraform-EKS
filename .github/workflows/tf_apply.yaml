@@ -36,6 +36,7 @@ jobs:
     env:
       TF_ENV: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
       TF_DIR: terraform/environments/${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+      TF_VAR_eks_admin_user: ${{ sercrets.EKS_ADMIN_USER }}
       TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
       TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
       TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
@@ -110,6 +111,7 @@ jobs:
     env:
       TF_ENV: ${{ github.ref_name }}
       TF_DIR: terraform/environments/${{ github.ref_name }}
+      TF_VAR_eks_admin_user: ${{ sercrets.EKS_ADMIN_USER }}
       TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
       TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
       TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
