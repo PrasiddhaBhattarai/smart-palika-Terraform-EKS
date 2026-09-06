@@ -39,7 +39,7 @@ resource "aws_eks_cluster" "this" {
   access_config {
 
     # authentication is handled through an API/IAM-based mechanism, rather than traditional username/password authentication.
-    authentication_mode                         = "API"
+    authentication_mode = "API"
 
     # Give the person/role that creates this EKS cluster administrator permissions automatically
     bootstrap_cluster_creator_admin_permissions = true
@@ -50,6 +50,23 @@ resource "aws_eks_cluster" "this" {
   }
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
+}
+
+#--- give eks-admin-access to your user even cluster is created by CICD pipeline ---
+resource "aws_eks_access_entry" "my_user" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = var.eks_admin_user
+}
+
+resource "aws_eks_access_policy_association" "my_user" {
+  cluster_name  = aws_eks_cluster.this.name
+  principal_arn = aws_eks_access_entry.my_user.principal_arn
+
+  policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
 }
 
 # ---------------- Node group IAM role ----------------

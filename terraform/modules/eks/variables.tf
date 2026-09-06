@@ -35,6 +35,11 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
+variable "eks_admin_user" {
+  type    = string
+  default = ""
+}
+
 variable "node_instance_types" {
   description = "EC2 instance types for the managed node group"
   type        = list(string)
