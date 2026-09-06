@@ -71,6 +71,8 @@ module "eks" {
   vpc_id              = module.vpc.vpc_id
   private_subnet_ids  = module.vpc.private_app_subnet_ids
   public_subnet_ids   = module.vpc.public_subnet_ids
+  eks_admin_user     = var.eks_admin_user
+  
   node_instance_types = var.eks_node_instance_types
   node_desired_size   = var.eks_node_desired_size
   node_min_size       = var.eks_node_min_size

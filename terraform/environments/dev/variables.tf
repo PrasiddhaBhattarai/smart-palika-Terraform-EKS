@@ -61,6 +61,11 @@ variable "eks_cluster_version" {
   default = "1.36"
 }
 
+variable "eks_admin_user" {
+  type    = string
+  default = ""
+}
+
 variable "eks_node_instance_types" {
   type    = list(string)
   default = ["t3.medium"]
