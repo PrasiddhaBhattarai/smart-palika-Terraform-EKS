@@ -32,7 +32,7 @@ spec:
       serviceAccountName: backend-pod-sm
       containers:
         - name: backend
-          image: prashidha333/sm-backend:v1.0.1
+          image: prashidha333/sm-backend:latest
 
           ports:
             - containerPort: 3000
