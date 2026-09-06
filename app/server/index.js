@@ -42,5 +42,3 @@ export const complaintCategories = {
   "Health": ["dead animals"],
   "Environment": ["pollution", "noise complaints"]
 };
-jljsgkljsa
-sljf
