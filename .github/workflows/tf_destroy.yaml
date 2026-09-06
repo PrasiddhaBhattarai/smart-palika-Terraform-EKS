@@ -37,6 +37,7 @@ jobs:
       TF_VAR_k8s_cloudinary_api_secret: ${{ secrets.K8S_CLOUDINARY_API_SECRET }}
       TF_VAR_k8s_email_user: ${{ secrets.K8S_EMAIL_USER }}
       TF_VAR_k8s_email_pass: ${{ secrets.K8S_EMAIL_PASS }}
+      TF_VAR_alb_zone_id: ${{ vars.ALB_ZONE_ID }}
       TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
       TF_VAR_app_record_name: ${{ vars.APP_RECORD_NAME }}
 
@@ -101,6 +102,7 @@ jobs:
       TF_VAR_k8s_cloudinary_api_secret: ${{ secrets.K8S_CLOUDINARY_API_SECRET }}
       TF_VAR_k8s_email_user: ${{ secrets.K8S_EMAIL_USER }}
       TF_VAR_k8s_email_pass: ${{ secrets.K8S_EMAIL_PASS }}
+      TF_VAR_alb_zone_id: ${{ vars.ALB_ZONE_ID }}
       TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
       TF_VAR_app_record_name: ${{ vars.APP_RECORD_NAME }}
 
@@ -138,6 +140,7 @@ jobs:
       - name: Terraform Apply Destroy
         working-directory: ${{ env.TF_DIR }}
         run: |
+          set +e
           for attempt in 1 2 3; do
             if [ "$attempt" -eq 1 ]; then 
               terraform apply --auto-approve destroy.tfplan 
