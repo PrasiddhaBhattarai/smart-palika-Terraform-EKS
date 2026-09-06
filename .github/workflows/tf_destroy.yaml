@@ -160,5 +160,3 @@ jobs:
             echo "Destroy failed (attempt $attempt/3), retrying in 30s..."
             sleep 30
           done
-          
-            
