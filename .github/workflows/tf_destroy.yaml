@@ -28,7 +28,7 @@ jobs:
     env:
       TF_ENV: ${{ inputs.environment }}
       TF_DIR: terraform/environments/${{ inputs.environment }}
-      TF_VAR_eks_admin_user: ${{ sercrets.EKS_ADMIN_USER }}
+      TF_VAR_eks_admin_user: ${{ secrets.EKS_ADMIN_USER }}
       TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
       TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
       TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
@@ -92,7 +92,7 @@ jobs:
     env:
       TF_ENV: ${{ inputs.environment }}
       TF_DIR: terraform/environments/${{ inputs.environment }}
-      TF_VAR_eks_admin_user: ${{ sercrets.EKS_ADMIN_USER }}
+      TF_VAR_eks_admin_user: ${{ secrets.EKS_ADMIN_USER }}
       TF_VAR_k8s_redis_url: ${{ secrets.K8S_REDIS_URL }}
       TF_VAR_k8s_jwt_secret: ${{ secrets.K8S_JWT_SECRET }}
       TF_VAR_k8s_cron_secret: ${{ secrets.K8S_CRON_SECRET }}
