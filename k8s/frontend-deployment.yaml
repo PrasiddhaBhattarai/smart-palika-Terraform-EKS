@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: prashidha333/sm-frontend:latest
+          image: prashidha333/sm-frontend:v1.0.1
           #imagePullPolicy: Never
           ports:
             - containerPort: 80
