@@ -14,6 +14,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# for backend base url
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Build the project
 RUN npm run build
 
