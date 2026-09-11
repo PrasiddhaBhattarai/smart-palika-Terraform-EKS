@@ -178,3 +178,36 @@ terraform force-unlock 831943a3-3fda-76ec-8f40-b75cbfdaeb4a
 
 ---
 
+## Screenshots
+
+#### VPC
+<img src="./screenShots/01.png" alt="Architecture_image">
+<br>
+
+#### EKS Cluster
+<img src="./screenShots/02.png" alt="Architecture_image">
+<br>
+
+#### EKS pods
+<img src="./screenShots/03.png" alt="Architecture_image">
+<br>
+
+#### RDS
+<img src="./screenShots/04.png" alt="Architecture_image">
+<br>
+
+#### Route53 Alias-record
+<img src="./screenShots/05.png" alt="Architecture_image">
+<br>
+
+#### App Home-page
+<img src="./screenShots/06.png" alt="Architecture_image">
+<br>
+
+#### App admin-dashboard
+<img src="./screenShots/07.png" alt="Architecture_image">
+<br>
+
+#### App user-dashboard
+<img src="./screenShots/08.png" alt="Architecture_image">
+<br>
